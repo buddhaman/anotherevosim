@@ -1,14 +1,16 @@
 import { World, Vec2, Box, Body, RevoluteJoint } from 'planck';
+import { Entity } from './Entity';
 
-export interface SimulationParams {
+export type SimulationParams = {
   gravity: number;
   timeStep: number;
-}
+};
 
 export class PhysicsWorld {
-  private world: World;
-  private params: SimulationParams;
-  private bodies: Body[] = [];
+  world: World;
+  params: SimulationParams;
+  bodies: Body[] = [];
+  entities: Map<string, Entity> = new Map();
 
   constructor(params: SimulationParams = { gravity: -10, timeStep: 1/60 }) {
     this.params = params;
@@ -16,20 +18,15 @@ export class PhysicsWorld {
   }
 
   step() {
-    this.world.step(this.params.timeStep);
-  }
+    for (const entity of this.entities.values()) {
+      entity.update(this.params.timeStep);
+    }
 
-  createGround(): Body {
-    const ground = this.world.createBody({
-      type: 'static',
-      position: new Vec2(0, -10)
-    });
-    ground.createFixture({
-      shape: Box(50, 1),
-      friction: 0.3
-    });
-    this.bodies.push(ground);
-    return ground;
+    this.world.step(this.params.timeStep);
+
+    for (const entity of this.entities.values()) {
+      entity.render();
+    }
   }
 
   createBox(x: number, y: number, width: number, height: number, dynamic: boolean = true): Body {
@@ -60,12 +57,23 @@ export class PhysicsWorld {
     return joint as RevoluteJoint;
   }
 
-  getBodies(): Body[] {
-    return this.bodies;
+  addEntity(entity: Entity): void {
+    this.entities.set(entity.id, entity);
   }
 
-  getWorld(): World {
-    return this.world;
+  removeEntity(id: string): void {
+    const entity = this.entities.get(id);
+    if (entity) {
+      entity.destroy();
+      this.entities.delete(id);
+    }
+  }
+
+  clearEntities(): void {
+    for (const entity of this.entities.values()) {
+      entity.destroy();
+    }
+    this.entities.clear();
   }
 
   updateParams(params: Partial<SimulationParams>) {

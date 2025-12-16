@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { InteractiveCanvas } from './components/InteractiveCanvas';
+import { SimulationCanvas } from './components/SimulationCanvas';
 import './App.css';
 
 function App() {
@@ -7,6 +7,7 @@ function App() {
     width: window.innerWidth - 250,
     height: window.innerHeight
   });
+  const [gravity, setGravity] = useState(0); // Top-down view, no gravity
 
   useEffect(() => {
     const handleResize = () => {
@@ -46,7 +47,7 @@ function App() {
         <div style={{ marginTop: '20px' }}>
           <h3 style={{ fontSize: '14px', color: '#aaa', marginBottom: '10px' }}>Controls</h3>
           <ul style={{ fontSize: '12px', lineHeight: '1.6', paddingLeft: '20px', margin: 0 }}>
-            <li><strong>Left Click:</strong> Spawn circle</li>
+            <li><strong>Left Click:</strong> Spawn creature</li>
             <li><strong>Right Click + Drag:</strong> Pan camera</li>
             <li><strong>Mouse Wheel:</strong> Zoom in/out</li>
           </ul>
@@ -57,14 +58,14 @@ function App() {
 
           <div style={{ marginBottom: '15px' }}>
             <label style={{ fontSize: '12px', display: 'block', marginBottom: '5px' }}>
-              Gravity: -10
+              Friction Damping: 0.5
             </label>
             <input
               type="range"
-              min="-20"
-              max="0"
-              step="0.5"
-              defaultValue="-10"
+              min="0"
+              max="1"
+              step="0.05"
+              defaultValue="0.5"
               style={{ width: '100%' }}
             />
           </div>
@@ -134,7 +135,11 @@ function App() {
 
       {/* Canvas */}
       <div style={{ flex: 1, backgroundColor: '#000' }}>
-        <InteractiveCanvas width={canvasSize.width} height={canvasSize.height} />
+        <SimulationCanvas
+          width={canvasSize.width}
+          height={canvasSize.height}
+          gravity={gravity}
+        />
       </div>
     </div>
   );
