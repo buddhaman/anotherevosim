@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SimulationCanvas } from './components/SimulationCanvas';
+import { Gene } from './simulation/Gene';
 import './App.css';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
   const [speedup, setSpeedup] = useState(1);
   const [fps, setFps] = useState(0);
   const [creatureCount, setCreatureCount] = useState(0);
+  const [jointAngleDegrees, setJointAngleDegrees] = useState(10);
 
   useEffect(() => {
     const handleResize = () => {
@@ -23,6 +25,11 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Update global joint angle deviation when slider changes
+  useEffect(() => {
+    Gene.JOINT_ANGLE_DEVIATION = jointAngleDegrees * (Math.PI / 180);
+  }, [jointAngleDegrees]);
 
   return (
     <div style={{
@@ -70,6 +77,21 @@ function App() {
               step="1"
               value={speedup}
               onChange={(e) => setSpeedup(parseInt(e.target.value))}
+              style={{ width: '100%' }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ fontSize: '12px', display: 'block', marginBottom: '5px' }}>
+              Joint Angle Range: {jointAngleDegrees}°
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="90"
+              step="5"
+              value={jointAngleDegrees}
+              onChange={(e) => setJointAngleDegrees(parseInt(e.target.value))}
               style={{ width: '100%' }}
             />
           </div>

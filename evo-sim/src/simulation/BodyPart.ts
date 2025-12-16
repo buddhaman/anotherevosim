@@ -2,7 +2,7 @@
 
 import { World, Body, Vec2, Box, RevoluteJoint } from 'planck';
 import { Graphics } from 'pixi.js';
-import { BodyPartGene, JointGene, Gene } from './Gene';
+import { BodyPartGene, Gene } from './Gene';
 import type { AttachmentSide } from './Gene';
 
 export class BodyPart {
@@ -24,12 +24,15 @@ export class BodyPart {
   phaseOffset: number;  // Random phase offset for sine wave
   frequencyMultiplier: number; // Random frequency multiplier
 
+  // Store position and angle explicitly
+  initialPosition: Vec2;
+  initialAngle: number;
+
   constructor(
     gene: BodyPartGene,
     world: World,
     depth: number,
     parent: BodyPart | null,
-    parentJointGene: JointGene | null,
     initialPosition?: Vec2,
     collisionGroup?: number
   ) {
@@ -50,21 +53,32 @@ export class BodyPart {
     this.actualWidth = gene.normalizedWidth * scaleFactor;
     this.actualHeight = gene.normalizedHeight * scaleFactor;
 
-    // Determine position
-    let position: Vec2;
+    // Calculate position and orientation
     if (parent === null) {
-      // Root segment uses provided position or origin
-      position = initialPosition || new Vec2(0, 0);
+      // Root: use provided position/angle
+      this.initialPosition = initialPosition || new Vec2(0, 0);
+      this.initialAngle = 0;
     } else {
-      // Child segment - calculate position based on attachment
-      position = this.calculateAttachmentPosition(parent, parentJointGene!);
+      // Child: calculate from parent's edge normal
+      const attachmentPoint = parent.getEdgeAttachmentPoint(gene.attachmentSide!, gene.attachmentPosition);
+      const normal = parent.getEdgeNormal(gene.attachmentSide!);
+
+      // Child points along the normal
+      this.initialAngle = Math.atan2(normal.y, normal.x);
+
+      // Child position: attachment point + distance along normal to align anchors
+      const childAnchorOffset = this.getAnchorOffsetInDirection(normal);
+      this.initialPosition = new Vec2(
+        attachmentPoint.x + childAnchorOffset.x,
+        attachmentPoint.y + childAnchorOffset.y
+      );
     }
 
     // Create physics body
     this.body = world.createBody({
       type: 'dynamic',
-      position: position,
-      angle: 0,
+      position: this.initialPosition,
+      angle: this.initialAngle,
       linearDamping: 0.0,
       angularDamping: parent === null ? 0.5 : 1.0 // Main body spins less
     });
@@ -77,9 +91,12 @@ export class BodyPart {
     });
 
     // Create joint if this is not root
-    if (parent !== null && parentJointGene !== null) {
-      const localAnchorA = this.getLocalAnchor(parent, parentJointGene);
-      const localAnchorB = this.getOwnAnchor(parentJointGene.attachmentSide);
+    if (parent !== null && gene.attachmentSide !== null) {
+      const localAnchorA = this.getLocalAnchor(parent, gene.attachmentSide, gene.attachmentPosition);
+      const localAnchorB = this.getOwnAnchor(gene.attachmentSide);
+
+      // Calculate actual angle range from normalized value and global factor
+      const maxDeviation = gene.angleRange * Gene.JOINT_ANGLE_DEVIATION;
 
       this.joint = world.createJoint(new RevoluteJoint({
         bodyA: parent.body,
@@ -87,8 +104,8 @@ export class BodyPart {
         localAnchorA: localAnchorA,
         localAnchorB: localAnchorB,
         enableLimit: true,
-        lowerAngle: parentJointGene.minAngle,
-        upperAngle: parentJointGene.maxAngle,
+        lowerAngle: -maxDeviation,  // Symmetric around 0 (pointing outward)
+        upperAngle: maxDeviation,
         enableMotor: true,
         maxMotorTorque: 60.0
       })) as RevoluteJoint;
@@ -102,14 +119,13 @@ export class BodyPart {
       return;
     }
 
-    for (const childJointGene of gene.children) {
-      if (childJointGene.active && depth + 1 <= Gene.MAX_DEPTH) {
+    for (const childGene of gene.children) {
+      if (childGene.active && depth + 1 <= Gene.MAX_DEPTH) {
         const childPart = new BodyPart(
-          childJointGene.childSegment,
+          childGene,
           world,
           depth + 1,
           this,
-          childJointGene,
           undefined,
           collisionGroup
         );
@@ -118,19 +134,97 @@ export class BodyPart {
     }
   }
 
-  // Calculate world position for attachment point on parent
-  calculateAttachmentPosition(parent: BodyPart, jointGene: JointGene): Vec2 {
-    const anchor = this.getLocalAnchor(parent, jointGene);
-    return parent.body.getWorldPoint(anchor);
+  // Get world position of attachment point on this body's edge
+  getEdgeAttachmentPoint(side: AttachmentSide, t: number): Vec2 {
+    // t is [0, 1] fraction along the edge
+    // Get local position first
+    let localX = 0;
+    let localY = 0;
+
+    switch (side) {
+      case 'right':
+        localX = this.actualWidth;
+        localY = (t - 0.5) * 2 * this.actualHeight;
+        break;
+      case 'top':
+        localX = (t - 0.5) * 2 * this.actualWidth;
+        localY = -this.actualHeight;
+        break;
+      case 'left':
+        localX = -this.actualWidth;
+        localY = (t - 0.5) * 2 * this.actualHeight;
+        break;
+      case 'bottom':
+        localX = (t - 0.5) * 2 * this.actualWidth;
+        localY = this.actualHeight;
+        break;
+    }
+
+    // Transform to world space
+    const cos = Math.cos(this.initialAngle);
+    const sin = Math.sin(this.initialAngle);
+
+    return new Vec2(
+      this.initialPosition.x + localX * cos - localY * sin,
+      this.initialPosition.y + localX * sin + localY * cos
+    );
   }
 
-  // Get local anchor point on parent body
-  getLocalAnchor(parent: BodyPart, jointGene: JointGene): Vec2 {
-    const t = jointGene.attachmentPosition;
+  // Get world-space normal vector for an edge
+  getEdgeNormal(side: AttachmentSide): Vec2 {
+    // Local normal (pointing outward)
+    let localNormalX = 0;
+    let localNormalY = 0;
+
+    switch (side) {
+      case 'right':
+        localNormalX = 1;
+        localNormalY = 0;
+        break;
+      case 'top':
+        localNormalX = 0;
+        localNormalY = -1;
+        break;
+      case 'left':
+        localNormalX = -1;
+        localNormalY = 0;
+        break;
+      case 'bottom':
+        localNormalX = 0;
+        localNormalY = 1;
+        break;
+    }
+
+    // Rotate by this body's angle
+    const cos = Math.cos(this.initialAngle);
+    const sin = Math.sin(this.initialAngle);
+
+    return new Vec2(
+      localNormalX * cos - localNormalY * sin,
+      localNormalX * sin + localNormalY * cos
+    );
+  }
+
+  // Get how far along a direction vector to place child's center
+  // so that child's anchor aligns with parent's anchor
+  getAnchorOffsetInDirection(direction: Vec2): Vec2 {
+    // Child is oriented along this direction, so its "back" anchor needs offsetting
+    // The "back" is the side that connects to parent
+    // Since child points along direction, back anchor is at (-width, 0) in child's local space
+    const backOffsetLength = this.actualWidth;
+
+    return new Vec2(
+      direction.x * backOffsetLength,
+      direction.y * backOffsetLength
+    );
+  }
+
+  // Get local anchor point on parent body for joint
+  getLocalAnchor(parent: BodyPart, side: AttachmentSide, t: number): Vec2 {
     const pw = parent.actualWidth;
     const ph = parent.actualHeight;
 
-    switch (jointGene.attachmentSide) {
+    switch (side) {
       case 'top':
         return new Vec2((t - 0.5) * 2 * pw, -ph);
       case 'bottom':
@@ -142,21 +236,11 @@ export class BodyPart {
     }
   }
 
-  // Get local anchor point on own body (opposite side of attachment)
+  // Get local anchor point on own body
+  // Since child is always oriented to point along the normal (away from parent),
+  // the attachment point is always at the "back" of the child: (-width, 0)
   getOwnAnchor(parentAttachmentSide: AttachmentSide): Vec2 {
-    const w = this.actualWidth;
-    const h = this.actualHeight;
-
-    switch (parentAttachmentSide) {
-      case 'top':
-        return new Vec2(0, h); // Attach at bottom
-      case 'bottom':
-        return new Vec2(0, -h); // Attach at top
-      case 'left':
-        return new Vec2(w, 0); // Attach at right
-      case 'right':
-        return new Vec2(-w, 0); // Attach at left
-    }
+    return new Vec2(-this.actualWidth, 0);
   }
 
   // Recursively collect all bodies in this subtree

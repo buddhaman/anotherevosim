@@ -31,7 +31,7 @@ export class Creature extends Entity {
     Creature.nextCollisionGroup--;
 
     // Build the body tree from the gene with initial position
-    this.rootPart = new BodyPart(gene.rootSegment, world, 0, null, null, { x, y }, this.collisionGroup);
+    this.rootPart = new BodyPart(gene.rootSegment, world, 0, null, { x, y }, this.collisionGroup);
 
     // Collect all bodies and graphics from the tree
     this.bodies = this.rootPart.getAllBodies();
