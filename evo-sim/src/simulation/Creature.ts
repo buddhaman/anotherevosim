@@ -17,13 +17,21 @@ export class Creature extends Entity {
   lowFriction: number = 0.0;    // No drag - free sliding
   frictionScaling: number = 40.0;
 
+  // Unique collision group for this creature (negative = don't collide with same group)
+  static nextCollisionGroup: number = -1;
+  collisionGroup: number;
+
   constructor(id: string, world: World, x: number, y: number, gene: Gene) {
     super(id);
     this.world = world;
     this.gene = gene;
 
+    // Assign unique collision group for this creature
+    this.collisionGroup = Creature.nextCollisionGroup;
+    Creature.nextCollisionGroup--;
+
     // Build the body tree from the gene with initial position
-    this.rootPart = new BodyPart(gene.rootSegment, world, 0, null, null, { x, y });
+    this.rootPart = new BodyPart(gene.rootSegment, world, 0, null, null, { x, y }, this.collisionGroup);
 
     // Collect all bodies and graphics from the tree
     this.bodies = this.rootPart.getAllBodies();

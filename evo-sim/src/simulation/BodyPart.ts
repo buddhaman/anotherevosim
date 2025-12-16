@@ -30,7 +30,8 @@ export class BodyPart {
     depth: number,
     parent: BodyPart | null,
     parentJointGene: JointGene | null,
-    initialPosition?: Vec2
+    initialPosition?: Vec2,
+    collisionGroup?: number
   ) {
     this.gene = gene;
     this.depth = depth;
@@ -71,7 +72,8 @@ export class BodyPart {
     this.body.createFixture({
       shape: Box(this.actualWidth, this.actualHeight),
       density: parent === null ? 1.0 : 0.8,
-      friction: 0.0
+      friction: 0.0,
+      filterGroupIndex: collisionGroup || 0
     });
 
     // Create joint if this is not root
@@ -107,7 +109,9 @@ export class BodyPart {
           world,
           depth + 1,
           this,
-          childJointGene
+          childJointGene,
+          undefined,
+          collisionGroup
         );
         this.children.push(childPart);
       }

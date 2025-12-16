@@ -23,7 +23,9 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
   const fpsRef = useRef(0);
   const lastTimeRef = useRef(performance.now());
   const frameCountRef = useRef(0);
+  const runningRef = useRef(true);
 
+  // Initialize once
   useEffect(() => {
     if (!canvasRef.current || initRef.current) return;
     initRef.current = true;
@@ -40,7 +42,8 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
           height,
           backgroundColor: 0x1a1a1a,
           antialias: true,
-          preference: 'webgl'
+          preference: 'webgl',
+          resizeTo: undefined // Don't auto-resize, we'll handle it manually
         });
 
         appRef.current = app;
@@ -70,14 +73,16 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
         spawnInitialCreatures(physicsWorld, worldContainer);
 
         // Simulation loop
-        let running = true;
+        runningRef.current = true;
         const loop = () => {
-          if (!running) return;
+          if (!runningRef.current || !appRef.current) return;
 
           // Step physics and update/render entities
           physicsWorld.step();
 
-          app.renderer.render(app.stage);
+          if (appRef.current && appRef.current.renderer) {
+            appRef.current.renderer.render(appRef.current.stage);
+          }
 
           // Calculate FPS
           frameCountRef.current++;
@@ -124,15 +129,17 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
     initPixi();
 
     return () => {
+      runningRef.current = false;
       canvas.removeEventListener('wheel', handleWheelNative);
       if (physicsWorldRef.current) {
         physicsWorldRef.current.clearEntities();
       }
       if (appRef.current) {
         appRef.current.destroy();
+        appRef.current = null;
       }
     };
-  }, [width, height]);
+  }, []); // Only run once on mount
 
   // Update gravity when it changes
   useEffect(() => {
@@ -147,6 +154,17 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
       physicsWorldRef.current.speedup = speedup;
     }
   }, [speedup]);
+
+  // Handle window resize
+  useEffect(() => {
+    if (!appRef.current || !appRef.current.renderer || !cameraRef.current) return;
+
+    // Update renderer size
+    appRef.current.renderer.resize(width, height);
+    
+    // Adjust camera position to center
+    cameraRef.current.setPosition(width / 2, height / 2);
+  }, [width, height]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!cameraRef.current) return;
@@ -265,11 +283,18 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
   return (
     <canvas
       ref={canvasRef}
+      width={width}
+      height={height}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onContextMenu={handleContextMenu}
-      style={{ display: 'block', cursor: 'crosshair' }}
+      style={{ 
+        display: 'block', 
+        cursor: 'crosshair',
+        width: `${width}px`,
+        height: `${height}px`
+      }}
     />
   );
 }
