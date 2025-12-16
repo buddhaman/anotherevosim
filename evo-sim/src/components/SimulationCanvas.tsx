@@ -60,6 +60,12 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
         // Draw grid for visual reference (top-down plane)
         drawGrid(worldContainer);
 
+        // Add bounds graphics to container
+        worldContainer.addChild(physicsWorld.boundsGraphics);
+
+        // Spawn 1000 creatures randomly across the world
+        spawnInitialCreatures(physicsWorld, worldContainer);
+
         // Simulation loop
         let running = true;
         const loop = () => {
@@ -191,11 +197,36 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
     container.addChild(gridGraphics);
   };
 
+  const spawnInitialCreatures = (physicsWorld: PhysicsWorld, container: Container) => {
+    const numCreatures = 1000;
+    const padding = 5; // Keep creatures away from walls
+
+    for (let i = 0; i < numCreatures; i++) {
+      const x = physicsWorld.bounds.minX + padding + Math.random() * (physicsWorld.bounds.maxX - physicsWorld.bounds.minX - 2 * padding);
+      const y = physicsWorld.bounds.minY + padding + Math.random() * (physicsWorld.bounds.maxY - physicsWorld.bounds.minY - 2 * padding);
+
+      const id = `creature-${i}-${Date.now()}`;
+      const creature = new Creature(id, physicsWorld.world, x, y);
+
+      physicsWorld.addEntity(creature);
+
+      for (const graphics of creature.graphics) {
+        container.addChild(graphics);
+      }
+    }
+
+    setEntityCount(physicsWorld.entities.size);
+  };
+
   const spawnCreature = (x: number, y: number) => {
     if (!worldContainerRef.current || !physicsWorldRef.current) return;
 
+    // Clamp spawn position to world bounds
+    const clampedX = Math.max(physicsWorldRef.current.bounds.minX + 2, Math.min(physicsWorldRef.current.bounds.maxX - 2, x));
+    const clampedY = Math.max(physicsWorldRef.current.bounds.minY + 2, Math.min(physicsWorldRef.current.bounds.maxY - 2, y));
+
     const id = `creature-${Date.now()}-${Math.random()}`;
-    const creature = new Creature(id, physicsWorldRef.current.world, x, y);
+    const creature = new Creature(id, physicsWorldRef.current.world, clampedX, clampedY);
 
     physicsWorldRef.current.addEntity(creature);
 

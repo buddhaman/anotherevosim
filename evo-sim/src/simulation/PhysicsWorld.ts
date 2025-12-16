@@ -1,5 +1,6 @@
 import { World, Vec2, Box, Body, RevoluteJoint } from 'planck';
 import { Entity } from './Entity';
+import { Graphics } from 'pixi.js';
 
 export type SimulationParams = {
   gravity: number;
@@ -13,9 +14,50 @@ export class PhysicsWorld {
   entities: Map<string, Entity> = new Map();
   speedup: number = 1; // How many steps to run per frame
 
+  bounds = {
+    minX: -100,
+    maxX: 100,
+    minY: -100,
+    maxY: 100
+  };
+
+  boundsGraphics!: Graphics;
+
   constructor(params: SimulationParams = { gravity: -10, timeStep: 1/60 }) {
     this.params = params;
     this.world = new World(new Vec2(0, this.params.gravity));
+    
+    this.createBounds();
+  }
+
+  createBounds() {
+    const wallThickness = 1;
+    const worldWidth = this.bounds.maxX - this.bounds.minX;
+    const worldHeight = this.bounds.maxY - this.bounds.minY;
+
+    // Create physics walls
+    const createWall = (x: number, y: number, width: number, height: number) => {
+      const wall = this.world.createBody({
+        type: 'static',
+        position: new Vec2(x, y)
+      });
+      wall.createFixture({
+        shape: Box(width / 2, height / 2),
+        density: 0,
+        friction: 0.3
+      });
+    };
+
+    createWall((this.bounds.minX + this.bounds.maxX) / 2, this.bounds.minY, worldWidth, wallThickness);
+    createWall((this.bounds.minX + this.bounds.maxX) / 2, this.bounds.maxY, worldWidth, wallThickness);
+    createWall(this.bounds.minX, (this.bounds.minY + this.bounds.maxY) / 2, wallThickness, worldHeight);
+    createWall(this.bounds.maxX, (this.bounds.minY + this.bounds.maxY) / 2, wallThickness, worldHeight);
+
+    // Create bounds graphics
+    this.boundsGraphics = new Graphics();
+    this.boundsGraphics
+      .rect(this.bounds.minX, this.bounds.minY, worldWidth, worldHeight)
+      .stroke({ width: 0.2, color: 0x666666 });
   }
 
   step() {

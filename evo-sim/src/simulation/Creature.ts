@@ -15,13 +15,13 @@ export class Creature extends Entity {
   rightLimbGraphics: Graphics;
 
   flapTime: number = 0;
-  flapSpeed: number = 2;
+  flapSpeed: number = 4; // Twice as fast
 
   // Ground friction parameters
-  baseFriction: number = 0.3;
-  highFriction: number = 1.0;  // Maximum drag - fully gripping
-  lowFriction: number = 0.0;   // No drag - free sliding
-  frictionScaling: number = 20.0; // k constant for damping - higher = stronger effect
+  baseFriction: number = 0.05;  // Very low - main body glides freely
+  highFriction: number = 1.0;   // Maximum drag - fully gripping
+  lowFriction: number = 0.0;    // No drag - free sliding
+  frictionScaling: number = 40.0; // k constant for damping - doubled for bigger forces
 
   // Current friction per body part (0 to 1)
   mainCurrentFriction: number = 0.5;
@@ -91,7 +91,7 @@ export class Creature extends Entity {
       lowerAngle: -Math.PI / 3,
       upperAngle: Math.PI / 3,
       enableMotor: true,
-      maxMotorTorque: 30.0 // Stronger motors
+      maxMotorTorque: 60.0 // Much stronger motors
     })) as RevoluteJoint;
 
     this.rightJoint = world.createJoint(new RevoluteJoint({
@@ -103,7 +103,7 @@ export class Creature extends Entity {
       lowerAngle: -Math.PI / 3,
       upperAngle: Math.PI / 3,
       enableMotor: true,
-      maxMotorTorque: 30.0 // Stronger motors
+      maxMotorTorque: 60.0 // Much stronger motors
     })) as RevoluteJoint;
 
     // Create graphics
@@ -119,6 +119,7 @@ export class Creature extends Entity {
     // Update flapping motion - both limbs in unison (symmetric)
     this.flapTime += deltaTime;
     const flapPhase = Math.sin(this.flapTime * this.flapSpeed);
+    const flapVelocity = Math.cos(this.flapTime * this.flapSpeed); // Derivative - direction of movement
 
     // For symmetric movement in top-down view:
     // Left limb sweeps with negative angle (counter-clockwise when backward)
@@ -129,16 +130,16 @@ export class Creature extends Entity {
 
     const leftCurrentAngle = this.leftJoint.getJointAngle();
     const leftAngleError = leftTargetAngle - leftCurrentAngle;
-    this.leftJoint.setMotorSpeed(leftAngleError * 5.0);
+    this.leftJoint.setMotorSpeed(leftAngleError * 10.0); // Faster response
 
     const rightCurrentAngle = this.rightJoint.getJointAngle();
     const rightAngleError = rightTargetAngle - rightCurrentAngle;
-    this.rightJoint.setMotorSpeed(rightAngleError * 5.0);
+    this.rightJoint.setMotorSpeed(rightAngleError * 10.0); // Faster response
 
-    // Modulate friction for forward motion:
-    // HIGH friction when swept backward (power stroke) - push against ground
-    // LOW friction when moving forward (recovery stroke) - glide freely
-    const limbFriction = flapPhase > 0 ? this.highFriction : this.lowFriction;
+    // Modulate friction based on VELOCITY (direction of movement), not position:
+    // HIGH friction when limbs moving forward (positive velocity) - grip and pull body forward
+    // LOW friction when limbs moving backward (negative velocity) - slide freely without resistance
+    const limbFriction = flapVelocity > 0 ? this.highFriction : this.lowFriction;
 
     this.mainCurrentFriction = this.baseFriction;
     this.leftCurrentFriction = limbFriction;
