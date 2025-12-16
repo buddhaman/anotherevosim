@@ -7,8 +7,10 @@ function App() {
     width: window.innerWidth - 250,
     height: window.innerHeight
   });
-  const [gravity, setGravity] = useState(0); // Top-down view, no gravity
+  const [gravity] = useState(0); // Top-down view, no gravity
   const [speedup, setSpeedup] = useState(1);
+  const [fps, setFps] = useState(0);
+  const [creatureCount, setCreatureCount] = useState(0);
 
   useEffect(() => {
     const handleResize = () => {
@@ -113,10 +115,10 @@ function App() {
             <strong>Status:</strong> Ready
           </div>
           <div style={{ marginBottom: '5px' }}>
-            <strong>Objects:</strong> 0
+            <strong>Creatures:</strong> {creatureCount}
           </div>
           <div>
-            <strong>FPS:</strong> 60
+            <strong>FPS:</strong> {fps}
           </div>
         </div>
       </div>
@@ -128,6 +130,10 @@ function App() {
           height={canvasSize.height}
           gravity={gravity}
           speedup={speedup}
+          onStatsUpdate={(fps, count) => {
+            setFps(fps);
+            setCreatureCount(count);
+          }}
         />
       </div>
     </div>

@@ -1,25 +1,28 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Application, Container, Graphics } from 'pixi.js';
 import { Camera } from '../utils/Camera';
 import { PhysicsWorld } from '../simulation/PhysicsWorld';
 import { Creature } from '../simulation/Creature';
+import { Gene } from '../simulation/Gene';
 
 interface SimulationCanvasProps {
   width: number;
   height: number;
   gravity: number;
   speedup: number;
+  onStatsUpdate?: (fps: number, creatureCount: number) => void;
 }
 
-export function SimulationCanvas({ width, height, gravity, speedup }: SimulationCanvasProps) {
+export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdate }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
   const cameraRef = useRef<Camera | null>(null);
   const worldContainerRef = useRef<Container | null>(null);
   const physicsWorldRef = useRef<PhysicsWorld | null>(null);
   const initRef = useRef(false);
-
-  const [entityCount, setEntityCount] = useState(0);
+  const fpsRef = useRef(0);
+  const lastTimeRef = useRef(performance.now());
+  const frameCountRef = useRef(0);
 
   useEffect(() => {
     if (!canvasRef.current || initRef.current) return;
@@ -63,7 +66,7 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
         // Add bounds graphics to container
         worldContainer.addChild(physicsWorld.boundsGraphics);
 
-        // Spawn 1000 creatures randomly across the world
+        // Spawn 10 creatures randomly across the world
         spawnInitialCreatures(physicsWorld, worldContainer);
 
         // Simulation loop
@@ -75,6 +78,22 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
           physicsWorld.step();
 
           app.renderer.render(app.stage);
+
+          // Calculate FPS
+          frameCountRef.current++;
+          const now = performance.now();
+          const elapsed = now - lastTimeRef.current;
+          if (elapsed >= 1000) {
+            fpsRef.current = Math.round((frameCountRef.current * 1000) / elapsed);
+            frameCountRef.current = 0;
+            lastTimeRef.current = now;
+
+            // Update stats
+            if (onStatsUpdate) {
+              onStatsUpdate(fpsRef.current, physicsWorld.entities.size);
+            }
+          }
+
           requestAnimationFrame(loop);
         };
 
@@ -198,7 +217,7 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
   };
 
   const spawnInitialCreatures = (physicsWorld: PhysicsWorld, container: Container) => {
-    const numCreatures = 1000;
+    const numCreatures = 10;
     const padding = 5; // Keep creatures away from walls
 
     for (let i = 0; i < numCreatures; i++) {
@@ -206,7 +225,8 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
       const y = physicsWorld.bounds.minY + padding + Math.random() * (physicsWorld.bounds.maxY - physicsWorld.bounds.minY - 2 * padding);
 
       const id = `creature-${i}-${Date.now()}`;
-      const creature = new Creature(id, physicsWorld.world, x, y);
+      const gene = Gene.createRandom();
+      const creature = new Creature(id, physicsWorld.world, x, y, gene);
 
       physicsWorld.addEntity(creature);
 
@@ -215,7 +235,9 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
       }
     }
 
-    setEntityCount(physicsWorld.entities.size);
+    if (onStatsUpdate) {
+      onStatsUpdate(fpsRef.current, physicsWorld.entities.size);
+    }
   };
 
   const spawnCreature = (x: number, y: number) => {
@@ -226,7 +248,8 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
     const clampedY = Math.max(physicsWorldRef.current.bounds.minY + 2, Math.min(physicsWorldRef.current.bounds.maxY - 2, y));
 
     const id = `creature-${Date.now()}-${Math.random()}`;
-    const creature = new Creature(id, physicsWorldRef.current.world, clampedX, clampedY);
+    const gene = Gene.createRandom();
+    const creature = new Creature(id, physicsWorldRef.current.world, clampedX, clampedY, gene);
 
     physicsWorldRef.current.addEntity(creature);
 
@@ -234,7 +257,9 @@ export function SimulationCanvas({ width, height, gravity, speedup }: Simulation
       worldContainerRef.current.addChild(graphics);
     }
 
-    setEntityCount(physicsWorldRef.current.entities.size);
+    if (onStatsUpdate) {
+      onStatsUpdate(fpsRef.current, physicsWorldRef.current.entities.size);
+    }
   };
 
   return (
