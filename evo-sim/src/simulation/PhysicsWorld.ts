@@ -11,6 +11,7 @@ export class PhysicsWorld {
   params: SimulationParams;
   bodies: Body[] = [];
   entities: Map<string, Entity> = new Map();
+  speedup: number = 1; // How many steps to run per frame
 
   constructor(params: SimulationParams = { gravity: -10, timeStep: 1/60 }) {
     this.params = params;
@@ -18,12 +19,16 @@ export class PhysicsWorld {
   }
 
   step() {
-    for (const entity of this.entities.values()) {
-      entity.update(this.params.timeStep);
+    // Run multiple steps for speedup (dt stays the same)
+    for (let i = 0; i < this.speedup; i++) {
+      for (const entity of this.entities.values()) {
+        entity.update(this.params.timeStep);
+      }
+
+      this.world.step(this.params.timeStep);
     }
 
-    this.world.step(this.params.timeStep);
-
+    // Render once after all steps
     for (const entity of this.entities.values()) {
       entity.render();
     }

@@ -18,10 +18,10 @@ export class Creature extends Entity {
   flapSpeed: number = 2;
 
   // Ground friction parameters
-  baseFriction: number = 0.5;
-  highFriction: number = 0.9;
-  lowFriction: number = 0.1;
-  frictionScaling: number = 10.0; // k constant for damping
+  baseFriction: number = 0.3;
+  highFriction: number = 1.0;  // Maximum drag - fully gripping
+  lowFriction: number = 0.0;   // No drag - free sliding
+  frictionScaling: number = 20.0; // k constant for damping - higher = stronger effect
 
   // Current friction per body part (0 to 1)
   mainCurrentFriction: number = 0.5;
@@ -47,7 +47,7 @@ export class Creature extends Entity {
     });
     this.bodies.push(this.mainBody);
 
-    // Create left limb
+    // Create left limb - larger and heavier for more push
     const leftAttachWorld = this.mainBody.getWorldPoint(new Vec2(-1.0, 0));
 
     this.leftLimb = world.createBody({
@@ -55,16 +55,16 @@ export class Creature extends Entity {
       position: leftAttachWorld,
       angle: 0,
       linearDamping: 0.0,
-      angularDamping: 0.5
+      angularDamping: 1.0
     });
     this.leftLimb.createFixture({
-      shape: Box(0.8, 0.3),
-      density: 0.5,
+      shape: Box(1.0, 0.4), // Bigger limbs
+      density: 0.8,
       friction: 0.0
     });
     this.bodies.push(this.leftLimb);
 
-    // Create right limb
+    // Create right limb - larger and heavier for more push
     const rightAttachWorld = this.mainBody.getWorldPoint(new Vec2(1.0, 0));
 
     this.rightLimb = world.createBody({
@@ -72,11 +72,11 @@ export class Creature extends Entity {
       position: rightAttachWorld,
       angle: 0,
       linearDamping: 0.0,
-      angularDamping: 0.5
+      angularDamping: 1.0
     });
     this.rightLimb.createFixture({
-      shape: Box(0.8, 0.3),
-      density: 0.5,
+      shape: Box(1.0, 0.4), // Bigger limbs
+      density: 0.8,
       friction: 0.0
     });
     this.bodies.push(this.rightLimb);
@@ -86,24 +86,24 @@ export class Creature extends Entity {
       bodyA: this.mainBody,
       bodyB: this.leftLimb,
       localAnchorA: new Vec2(-1.0, 0),
-      localAnchorB: new Vec2(0.8, 0),
+      localAnchorB: new Vec2(1.0, 0), // Adjusted for bigger limbs
       enableLimit: true,
       lowerAngle: -Math.PI / 3,
       upperAngle: Math.PI / 3,
       enableMotor: true,
-      maxMotorTorque: 15.0
+      maxMotorTorque: 30.0 // Stronger motors
     })) as RevoluteJoint;
 
     this.rightJoint = world.createJoint(new RevoluteJoint({
       bodyA: this.mainBody,
       bodyB: this.rightLimb,
       localAnchorA: new Vec2(1.0, 0),
-      localAnchorB: new Vec2(-0.8, 0),
+      localAnchorB: new Vec2(-1.0, 0), // Adjusted for bigger limbs
       enableLimit: true,
       lowerAngle: -Math.PI / 3,
       upperAngle: Math.PI / 3,
       enableMotor: true,
-      maxMotorTorque: 15.0
+      maxMotorTorque: 30.0 // Stronger motors
     })) as RevoluteJoint;
 
     // Create graphics
@@ -116,27 +116,29 @@ export class Creature extends Entity {
   }
 
   update(deltaTime: number): void {
-    // Update flapping motion - both limbs in unison
+    // Update flapping motion - both limbs in unison (symmetric)
     this.flapTime += deltaTime;
     const flapPhase = Math.sin(this.flapTime * this.flapSpeed);
 
-    // Both limbs flap together (same phase)
-    // Negative angle = limbs swept backward (power stroke)
-    // Positive angle = limbs swept forward (recovery stroke)
-    const targetAngle = flapPhase * (Math.PI / 4); // -45° to +45°
+    // For symmetric movement in top-down view:
+    // Left limb sweeps with negative angle (counter-clockwise when backward)
+    // Right limb sweeps with positive angle (clockwise when backward)
+    // This makes them mirror each other symmetrically
+    const leftTargetAngle = -flapPhase * (Math.PI / 4); // Flap backward when negative
+    const rightTargetAngle = flapPhase * (Math.PI / 4);  // Flap backward when positive
 
     const leftCurrentAngle = this.leftJoint.getJointAngle();
-    const leftAngleError = targetAngle - leftCurrentAngle;
+    const leftAngleError = leftTargetAngle - leftCurrentAngle;
     this.leftJoint.setMotorSpeed(leftAngleError * 5.0);
 
     const rightCurrentAngle = this.rightJoint.getJointAngle();
-    const rightAngleError = targetAngle - rightCurrentAngle;
+    const rightAngleError = rightTargetAngle - rightCurrentAngle;
     this.rightJoint.setMotorSpeed(rightAngleError * 5.0);
 
     // Modulate friction for forward motion:
-    // HIGH friction when swept backward (negative angle) - power stroke, push against ground
-    // LOW friction when moving forward (positive angle) - recovery stroke, glide freely
-    const limbFriction = flapPhase < 0 ? this.highFriction : this.lowFriction;
+    // HIGH friction when swept backward (power stroke) - push against ground
+    // LOW friction when moving forward (recovery stroke) - glide freely
+    const limbFriction = flapPhase > 0 ? this.highFriction : this.lowFriction;
 
     this.mainCurrentFriction = this.baseFriction;
     this.leftCurrentFriction = limbFriction;
@@ -222,7 +224,7 @@ export class Creature extends Entity {
     this.leftLimbGraphics.rotation = leftAngle;
 
     this.leftLimbGraphics
-      .rect(-0.8, -0.3, 1.6, 0.6)
+      .rect(-1.0, -0.4, 2.0, 0.8)
       .fill({ color: leftColor, alpha: 0.9 })
       .stroke({ width: 0.05, color: 0xffffff });
 
@@ -237,7 +239,7 @@ export class Creature extends Entity {
     this.rightLimbGraphics.rotation = rightAngle;
 
     this.rightLimbGraphics
-      .rect(-0.8, -0.3, 1.6, 0.6)
+      .rect(-1.0, -0.4, 2.0, 0.8)
       .fill({ color: rightColor, alpha: 0.9 })
       .stroke({ width: 0.05, color: 0xffffff });
   }

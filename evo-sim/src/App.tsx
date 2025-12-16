@@ -8,6 +8,7 @@ function App() {
     height: window.innerHeight
   });
   const [gravity, setGravity] = useState(0); // Top-down view, no gravity
+  const [speedup, setSpeedup] = useState(1);
 
   useEffect(() => {
     const handleResize = () => {
@@ -58,28 +59,15 @@ function App() {
 
           <div style={{ marginBottom: '15px' }}>
             <label style={{ fontSize: '12px', display: 'block', marginBottom: '5px' }}>
-              Friction Damping: 0.5
+              Speedup: {speedup}x
             </label>
             <input
               type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              defaultValue="0.5"
-              style={{ width: '100%' }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '5px' }}>
-              Mutation Rate: 0.1
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              defaultValue="0.1"
+              min="1"
+              max="10"
+              step="1"
+              value={speedup}
+              onChange={(e) => setSpeedup(parseInt(e.target.value))}
               style={{ width: '100%' }}
             />
           </div>
@@ -139,6 +127,7 @@ function App() {
           width={canvasSize.width}
           height={canvasSize.height}
           gravity={gravity}
+          speedup={speedup}
         />
       </div>
     </div>

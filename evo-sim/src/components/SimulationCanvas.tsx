@@ -8,9 +8,10 @@ interface SimulationCanvasProps {
   width: number;
   height: number;
   gravity: number;
+  speedup: number;
 }
 
-export function SimulationCanvas({ width, height, gravity }: SimulationCanvasProps) {
+export function SimulationCanvas({ width, height, gravity, speedup }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
   const cameraRef = useRef<Camera | null>(null);
@@ -114,6 +115,13 @@ export function SimulationCanvas({ width, height, gravity }: SimulationCanvasPro
       physicsWorldRef.current.updateParams({ gravity });
     }
   }, [gravity]);
+
+  // Update speedup when it changes
+  useEffect(() => {
+    if (physicsWorldRef.current) {
+      physicsWorldRef.current.speedup = speedup;
+    }
+  }, [speedup]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!cameraRef.current) return;
