@@ -3,7 +3,8 @@
  * Run with: npm run dev (or use in tests)
  */
 
-import { MinimalGatedUnit, getGRUGeneSize, GRUConfig } from './gru';
+import { MinimalGatedUnit, getGRUGeneSize } from './gru';
+import type { GRUConfig } from './gru';
 
 // Example: Create a simple GRU brain
 function createExampleGRU() {
@@ -107,12 +108,6 @@ function mutationExample() {
   console.log(`Parent output:    [${parentOutput.map(x => x.toFixed(4)).join(', ')}]`);
   console.log(`Offspring output: [${offspringOutput.map(x => x.toFixed(4)).join(', ')}]`);
   console.log('(Should be similar but not identical due to mutation)');
-}
-
-// Run examples if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  simulationLoop();
-  mutationExample();
 }
 
 export { createExampleGRU, simulationLoop, mutationExample };

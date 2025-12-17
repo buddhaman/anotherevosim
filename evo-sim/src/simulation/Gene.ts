@@ -40,7 +40,7 @@ export class Gene {
   static SCALE_FACTOR: number = 0.9;  // Slower shrinking = more uniform sizes
   static MAX_DEPTH: number = 4;
   static MAX_SEGMENT_COUNT: number = 20;
-  static JOINT_ANGLE_DEVIATION: number = 10 * (Math.PI / 180);  // 10 degrees in radians
+  static JOINT_ANGLE_DEVIATION: number = 60 * (Math.PI / 180);  // 60 degrees in radians (increased for more expressive movement)
 
   constructor(rootSegment?: BodyPartGene) {
     if (rootSegment) {

@@ -226,7 +226,7 @@ export class BodyPart {
   // Get local anchor point on own body
   // Since child is always oriented to point along the normal (away from parent),
   // the attachment point is always at the "back" of the child: (-width, 0)
-  getOwnAnchor(parentAttachmentSide: AttachmentSide): Vec2 {
+  getOwnAnchor(_parentAttachmentSide: AttachmentSide): Vec2 {
     return new Vec2(-this.actualWidth, 0);
   }
 

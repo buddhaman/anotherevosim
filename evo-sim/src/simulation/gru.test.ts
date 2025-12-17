@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MinimalGatedUnit, getGRUGeneSize, getGRUStateSize, GRUConfig } from './gru';
+import { MinimalGatedUnit, getGRUGeneSize, getGRUStateSize } from './gru';
+import type { GRUConfig } from './gru';
 
 describe('GRU gene size calculations', () => {
   it('should calculate correct gene size for small GRU', () => {

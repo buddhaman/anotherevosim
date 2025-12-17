@@ -3,7 +3,7 @@ import { Application, Container, Graphics } from 'pixi.js';
 import { Camera } from '../utils/Camera';
 import { PhysicsWorld } from '../simulation/PhysicsWorld';
 import { Creature } from '../simulation/Creature';
-import { Gene } from '../simulation/Gene';
+import { Genome } from '../simulation/Genome';
 import type { Tool } from '../App';
 
 interface SimulationCanvasProps {
@@ -98,7 +98,7 @@ export function SimulationCanvas({ width, height, gravity, speedup, currentTool,
 
             // Update stats
             if (onStatsUpdate) {
-              onStatsUpdate(fpsRef.current, physicsWorld.entities.size);
+              onStatsUpdate(fpsRef.current, physicsWorld.entities.length);
             }
           }
 
@@ -251,8 +251,8 @@ export function SimulationCanvas({ width, height, gravity, speedup, currentTool,
       const y = physicsWorld.bounds.minY + padding + Math.random() * (physicsWorld.bounds.maxY - physicsWorld.bounds.minY - 2 * padding);
 
       const id = `creature-${i}-${Date.now()}`;
-      const gene = Gene.createRandom();
-      const creature = new Creature(id, physicsWorld, x, y, gene);
+      const genome = Genome.createRandom();
+      const creature = new Creature(id, physicsWorld, x, y, genome);
 
       physicsWorld.addEntity(creature);
 
@@ -262,7 +262,7 @@ export function SimulationCanvas({ width, height, gravity, speedup, currentTool,
     }
 
     if (onStatsUpdate) {
-      onStatsUpdate(fpsRef.current, physicsWorld.entities.size);
+      onStatsUpdate(fpsRef.current, physicsWorld.entities.length);
     }
   };
 
@@ -274,8 +274,8 @@ export function SimulationCanvas({ width, height, gravity, speedup, currentTool,
     const clampedY = Math.max(physicsWorldRef.current.bounds.minY + 2, Math.min(physicsWorldRef.current.bounds.maxY - 2, y));
 
     const id = `creature-${Date.now()}-${Math.random()}`;
-    const gene = Gene.createRandom();
-    const creature = new Creature(id, physicsWorldRef.current, clampedX, clampedY, gene);
+    const genome = Genome.createRandom();
+    const creature = new Creature(id, physicsWorldRef.current, clampedX, clampedY, genome);
 
     physicsWorldRef.current.addEntity(creature);
 
@@ -284,7 +284,7 @@ export function SimulationCanvas({ width, height, gravity, speedup, currentTool,
     }
 
     if (onStatsUpdate) {
-      onStatsUpdate(fpsRef.current, physicsWorldRef.current.entities.size);
+      onStatsUpdate(fpsRef.current, physicsWorldRef.current.entities.length);
     }
   };
 
