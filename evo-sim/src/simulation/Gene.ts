@@ -25,8 +25,8 @@ export class BodyPartGene {
     attachmentPosition: number = 0.5,
     angleRange: number = 1.0
   ) {
-    this.normalizedWidth = Math.max(0.25, Math.min(1.0, normalizedWidth));
-    this.normalizedHeight = Math.max(0.25, Math.min(1.0, normalizedHeight));
+    this.normalizedWidth = Math.max(0.05, Math.min(1.0, normalizedWidth));
+    this.normalizedHeight = Math.max(0.05, Math.min(1.0, normalizedHeight));
     this.children = children;
     this.active = active;
     this.attachmentSide = attachmentSide;
@@ -104,8 +104,8 @@ export class Gene {
   // Recursively create a random body part with random children
   static createRandomSegment(depth: number, isRoot: boolean): BodyPartGene {
     // Random size
-    const width = 0.5 + Math.random() * 0.5;  // [0.5, 1.0]
-    const height = 0.5 + Math.random() * 0.5; // [0.5, 1.0]
+    const width = 0.15 + Math.random() * 0.5;  // [0.5, 1.0]
+    const height = 0.15 + Math.random() * 0.5; // [0.5, 1.0]
 
     const children: BodyPartGene[] = [];
 
@@ -114,45 +114,58 @@ export class Gene {
       return new BodyPartGene(width, height, children);
     }
 
-    // Simple: 50% chance of having 1 child
-    if (Math.random() < 0.5) {
-      return new BodyPartGene(width, height, children);
-    }
-
-    // Pick a random side for the child
     // For non-root segments, 'left' is forbidden (that's the back where it connects to parent)
     const sides: AttachmentSide[] = isRoot
       ? ['top', 'bottom', 'left', 'right']
       : ['top', 'bottom', 'right'];  // Exclude 'left' - that's the back
 
-    const side = sides[Math.floor(Math.random() * sides.length)];
+    // Determine how many children to try to create based on depth
+    // Depth 0 (root): 2-4 children attempts
+    // Depth 1: 1-3 children attempts
+    // Depth 2: 0-2 children attempts
+    // Depth 3+: 0-1 children attempts
+    const maxChildAttempts = Math.max(1, 4 - depth);
+    const minChildAttempts = Math.max(0, 2 - depth);
+    const childAttempts = minChildAttempts + Math.floor(Math.random() * (maxChildAttempts - minChildAttempts + 1));
 
-    // Random attachment position along the side
-    const position = 0.3 + Math.random() * 0.4; // [0.3, 0.7]
+    // Probability of each child existing decreases with depth
+    const childProbability = Math.max(0.3, 1.0 - depth * 0.2);
 
-    // Random normalized angle range [0.5, 1.0]
-    const angleRange = 0.5 + Math.random() * 0.5;
+    // Track which sides we've used to avoid duplicates
+    const usedSides = new Set<AttachmentSide>();
 
-    // Create one child segment recursively (it's not a root)
-    const childSegment = Gene.createRandomSegment(depth + 1, false);
+    for (let i = 0; i < childAttempts; i++) {
+      // Check if this child should exist
+      if (Math.random() > childProbability) {
+        continue;
+      }
 
-    // Set the child's attachment properties
-    childSegment.attachmentSide = side;
-    childSegment.attachmentPosition = position;
-    childSegment.angleRange = angleRange;
+      // Find an unused side
+      const availableSides = sides.filter(s => !usedSides.has(s));
+      if (availableSides.length === 0) {
+        break; // No more sides available
+      }
 
-    children.push(childSegment);
+      const side = availableSides[Math.floor(Math.random() * availableSides.length)];
+      usedSides.add(side);
+
+      // Random attachment position along the side
+      const position = 0.3 + Math.random() * 0.4; // [0.3, 0.7]
+
+      // Random normalized angle range [0.5, 1.0]
+      const angleRange = 0.5 + Math.random() * 0.5;
+
+      // Create child segment recursively (it's not a root)
+      const childSegment = Gene.createRandomSegment(depth + 1, false);
+
+      // Set the child's attachment properties
+      childSegment.attachmentSide = side;
+      childSegment.attachmentPosition = position;
+      childSegment.angleRange = angleRange;
+
+      children.push(childSegment);
+    }
 
     return new BodyPartGene(width, height, children);
-  }
-
-  // Get opposite side
-  static getOppositeSide(side: AttachmentSide): AttachmentSide {
-    switch (side) {
-      case 'top': return 'bottom';
-      case 'bottom': return 'top';
-      case 'left': return 'right';
-      case 'right': return 'left';
-    }
   }
 }

@@ -85,7 +85,7 @@ export class BodyPart {
     });
 
     this.body.createFixture({
-      shape: Box(this.actualWidth, this.actualHeight),
+      shape: new Box(this.actualWidth / 2, this.actualHeight / 2),
       density: parent === null ? 1.0 : 0.8,
       friction: 0.0,
       filterGroupIndex: collisionGroup || 0
