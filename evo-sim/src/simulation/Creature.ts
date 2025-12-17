@@ -1,12 +1,15 @@
-import { World } from 'planck';
+import { Vec2, World } from 'planck';
 import { Entity } from './Entity';
-import { Gene } from './Gene';
+import { PhysicsWorld } from './PhysicsWorld';
+import { Gene, BodyPartGene } from './Gene';
 import { BodyPart } from './BodyPart';
 
 export class Creature extends Entity {
-  world: World;
   gene: Gene;
-  rootPart: BodyPart;
+
+  // Bodypart at index 0 is the root part
+  bodyParts: BodyPart[] = [];
+  rootPart!: BodyPart; // Definitely assigned in buildBodyFromGenes
 
   flapTime: number = 0;
   flapSpeed: number = 4;
@@ -21,92 +24,189 @@ export class Creature extends Entity {
   static nextCollisionGroup: number = -1;
   collisionGroup: number;
 
-  constructor(id: string, world: World, x: number, y: number, gene: Gene) {
-    super(id);
-    this.world = world;
+  constructor(id: string, physicsWorld: PhysicsWorld, x: number, y: number, gene: Gene) {
+    super(id, physicsWorld);
     this.gene = gene;
 
     // Assign unique collision group for this creature
     this.collisionGroup = Creature.nextCollisionGroup;
     Creature.nextCollisionGroup--;
 
-    // Build the body tree from the gene with initial position
-    this.rootPart = new BodyPart(gene.rootSegment, world, 0, null, { x, y }, this.collisionGroup);
+    // Build body parts from flat list
+    this.buildBodyFromGenes(physicsWorld.world, x, y);
 
-    // Collect all bodies and graphics from the tree
-    this.bodies = this.rootPart.getAllBodies();
-    this.graphics = this.rootPart.getAllGraphics();
+    // Collect all bodies and graphics
+    this.bodies = [];
+    this.graphics = [];
+    for (const part of this.bodyParts) {
+      this.bodies.push(part.body);
+      this.graphics.push(part.graphics);
+    }
 
     this.render();
+  }
+
+  // Build body parts from the flat gene list
+  private buildBodyFromGenes(world: World, x: number, y: number): void {
+    if (this.gene.BodyPartGenes.length === 0) {
+      return;
+    }
+
+    // First, create all body parts (without joints)
+    for (let i = 0; i < this.gene.BodyPartGenes.length; i++) {
+      const gene = this.gene.BodyPartGenes[i];
+      if (!gene.active) continue;
+
+      const parentIndex = gene.parentIndex;
+      const parent = parentIndex !== null ? this.bodyParts[parentIndex] : null;
+      
+      // Calculate depth
+      let depth = 0;
+      let currentIndex: number | null = i;
+      while (currentIndex !== null) {
+        depth++;
+        currentIndex = this.gene.BodyPartGenes[currentIndex].parentIndex;
+      }
+      depth--; // Subtract 1 because we count from 0
+
+      // Initial position for root, undefined for children (will be calculated)
+      const initialPosition = parent === null ? new Vec2(x, y) : undefined;
+
+      const bodyPart = new BodyPart(
+        gene,
+        world,
+        depth,
+        parent,
+        initialPosition,
+        this.collisionGroup
+      );
+
+      this.bodyParts.push(bodyPart);
+
+      // Link parent and child
+      if (parent) {
+        parent.children.push(bodyPart);
+      }
+    }
+
+    // Root part is at index 0
+    this.rootPart = this.bodyParts[0];
+  }
+
+  public addBodyPart(gene: BodyPartGene, parentIndex: number | null): void {
+    const world = this.world.world; // Get World from PhysicsWorld
+    
+    // Add to gene list
+    const newIndex = this.gene.addBodyPartGene(
+      gene.normalizedWidth,
+      gene.normalizedHeight,
+      parentIndex,
+      gene.attachmentSide,
+      gene.attachmentPosition,
+      gene.angleRange
+    );
+
+    // Create the body part
+    const parent = parentIndex !== null ? this.bodyParts[parentIndex] : null;
+    
+    // Calculate depth
+    let depth = 0;
+    let currentIndex: number | null = newIndex;
+    while (currentIndex !== null) {
+      depth++;
+      currentIndex = this.gene.BodyPartGenes[currentIndex].parentIndex;
+    }
+    depth--;
+
+    const bodyPart = new BodyPart(
+      gene,
+      world,
+      depth,
+      parent,
+      undefined,
+      this.collisionGroup
+    );
+
+    this.bodyParts.push(bodyPart);
+
+    // Link parent and child
+    if (parent) {
+      parent.children.push(bodyPart);
+    }
+
+    // Update bodies and graphics arrays
+    this.bodies.push(bodyPart.body);
+    this.graphics.push(bodyPart.graphics);
   }
 
   update(deltaTime: number): void {
     // Update time
     this.flapTime += deltaTime;
 
-    // Apply test behavior to all body parts
-    this.testBehavior(this.rootPart, this.flapTime);
+    // Apply test behavior to all body parts (simple iteration)
+    for (const part of this.bodyParts) {
+      if (!part.gene.active) continue;
 
-    // Apply ground friction to all body parts recursively
-    this.applyFrictionRecursive(this.rootPart, deltaTime);
-  }
+      // Calculate actuation (0 to 1) for this body part
+      const actuation = part.calculateActuation(this.flapTime * this.flapSpeed);
 
-  // Test behavior: actuate each body part with its own sine wave
-  testBehavior(part: BodyPart, time: number): void {
-    // Calculate actuation (0 to 1) for this body part
-    const actuation = part.calculateActuation(time * this.flapSpeed);
+      // Set friction based on actuation
+      // Low actuation = low friction (slide freely)
+      // High actuation = high friction (grip ground)
+      part.currentFriction = this.lowFriction + actuation * (this.highFriction - this.lowFriction);
 
-    // Set friction based on actuation
-    // Low actuation = low friction (slide freely)
-    // High actuation = high friction (grip ground)
-    part.currentFriction = this.lowFriction + actuation * (this.highFriction - this.lowFriction);
+      // If this part has a joint, actuate it
+      if (part.joint) {
+        // Get joint limits
+        const minAngle = part.joint.getLowerLimit();
+        const maxAngle = part.joint.getUpperLimit();
 
-    // If this part has a joint, actuate it
-    if (part.joint) {
-      // Get joint limits
-      const minAngle = part.joint.getLowerLimit();
-      const maxAngle = part.joint.getUpperLimit();
+        // Target angle based on actuation (0 = min, 1 = max)
+        const targetAngle = minAngle + actuation * (maxAngle - minAngle);
 
-      // Target angle based on actuation (0 = min, 1 = max)
-      const targetAngle = minAngle + actuation * (maxAngle - minAngle);
-
-      // PD control to reach target angle
-      const currentAngle = part.joint.getJointAngle();
-      const angleError = targetAngle - currentAngle;
-      part.joint.setMotorSpeed(angleError * 10.0);
+        // PD control to reach target angle
+        const currentAngle = part.joint.getJointAngle();
+        const angleError = targetAngle - currentAngle;
+        part.joint.setMotorSpeed(angleError * 10.0);
+      }
     }
 
-    // Recursively apply to children
-    for (const child of part.children) {
-      this.testBehavior(child, time);
-    }
-  }
-
-  applyFrictionRecursive(part: BodyPart, dt: number): void {
-    part.applyGroundFriction(this.frictionScaling, dt);
-    for (const child of part.children) {
-      this.applyFrictionRecursive(child, dt);
+    // Apply ground friction to all body parts
+    for (const part of this.bodyParts) {
+      if (!part.gene.active) continue;
+      part.applyGroundFriction(this.frictionScaling, deltaTime);
     }
   }
 
   render(): void {
-    this.renderRecursive(this.rootPart);
-  }
-
-  renderRecursive(part: BodyPart): void {
-    part.render();
-    for (const child of part.children) {
-      this.renderRecursive(child);
+    // Simple iteration over all body parts
+    for (const part of this.bodyParts) {
+      if (!part.gene.active) continue;
+      part.render();
     }
   }
 
   destroy(): void {
-    this.rootPart.destroy(this.world);
+    const world = this.world.world; // Get World from PhysicsWorld
+    // Destroy all body parts (iterate in reverse to handle parent-child relationships)
+    for (let i = this.bodyParts.length - 1; i >= 0; i--) {
+      this.bodyParts[i].destroy(world);
+    }
+    this.bodyParts = [];
     this.bodies = [];
     this.graphics = [];
   }
 
   getBodyPartAt(x: number, y: number): any {
-    return this.rootPart.checkContainsPoint(x, y);
+    // Check all body parts, prefer deeper ones (children first)
+    // Sort by depth descending to check children before parents
+    const sortedParts = [...this.bodyParts].sort((a, b) => b.depth - a.depth);
+    
+    for (const part of sortedParts) {
+      if (!part.gene.active) continue;
+      const found = part.checkContainsPoint(x, y);
+      if (found) return found;
+    }
+    return null;
   }
 }

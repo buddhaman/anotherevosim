@@ -11,7 +11,7 @@ export class PhysicsWorld {
   world: World;
   params: SimulationParams;
   bodies: Body[] = [];
-  entities: Map<string, Entity> = new Map();
+  entities: Entity[] = [];
   speedup: number = 1; // How many steps to run per frame
   selectedBodyPart: any = null; // Currently selected body part
 
@@ -72,7 +72,7 @@ export class PhysicsWorld {
     }
 
     // Render once after all steps
-    for (const entity of this.entities.values()) {
+    for (const entity of this.entities) {
       entity.render();
     }
   }
@@ -106,14 +106,14 @@ export class PhysicsWorld {
   }
 
   addEntity(entity: Entity): void {
-    this.entities.set(entity.id, entity);
+    this.entities.push(entity);
   }
 
   removeEntity(id: string): void {
-    const entity = this.entities.get(id);
+    const entity = this.entities.find(e => e.id === id);
     if (entity) {
       entity.destroy();
-      this.entities.delete(id);
+      this.entities = this.entities.filter(e => e.id !== id);
     }
   }
 
@@ -121,7 +121,7 @@ export class PhysicsWorld {
     for (const entity of this.entities.values()) {
       entity.destroy();
     }
-    this.entities.clear();
+    this.entities = [];
   }
 
   updateParams(params: Partial<SimulationParams>) {

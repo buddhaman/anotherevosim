@@ -114,25 +114,6 @@ export class BodyPart {
 
     // Create graphics
     this.graphics = new Graphics();
-
-    // Create children recursively (safety check: depth must be less than MAX_DEPTH)
-    if (depth >= Gene.MAX_DEPTH) {
-      return;
-    }
-
-    for (const childGene of gene.children) {
-      if (childGene.active && depth + 1 <= Gene.MAX_DEPTH) {
-        const childPart = new BodyPart(
-          childGene,
-          world,
-          depth + 1,
-          this,
-          undefined,
-          collisionGroup
-        );
-        this.children.push(childPart);
-      }
-    }
   }
 
   // Get world position of attachment point on this body's edge

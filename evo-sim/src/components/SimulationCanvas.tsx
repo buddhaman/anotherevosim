@@ -252,7 +252,7 @@ export function SimulationCanvas({ width, height, gravity, speedup, currentTool,
 
       const id = `creature-${i}-${Date.now()}`;
       const gene = Gene.createRandom();
-      const creature = new Creature(id, physicsWorld.world, x, y, gene);
+      const creature = new Creature(id, physicsWorld, x, y, gene);
 
       physicsWorld.addEntity(creature);
 
@@ -275,7 +275,7 @@ export function SimulationCanvas({ width, height, gravity, speedup, currentTool,
 
     const id = `creature-${Date.now()}-${Math.random()}`;
     const gene = Gene.createRandom();
-    const creature = new Creature(id, physicsWorldRef.current.world, clampedX, clampedY, gene);
+    const creature = new Creature(id, physicsWorldRef.current, clampedX, clampedY, gene);
 
     physicsWorldRef.current.addEntity(creature);
 
