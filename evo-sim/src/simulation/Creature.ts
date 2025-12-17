@@ -105,4 +105,8 @@ export class Creature extends Entity {
     this.bodies = [];
     this.graphics = [];
   }
+
+  getBodyPartAt(x: number, y: number): any {
+    return this.rootPart.checkContainsPoint(x, y);
+  }
 }

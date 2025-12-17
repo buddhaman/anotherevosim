@@ -19,6 +19,7 @@ export class BodyPart {
   children: BodyPart[];
 
   currentFriction: number;
+  isSelected: boolean = false;
 
   // Actuation parameters (unique per body part)
   phaseOffset: number;  // Random phase offset for sine wave
@@ -308,6 +309,68 @@ export class BodyPart {
     this.body.applyAngularImpulse(angularImpulse, true);
   }
 
+  // Check if a world point is inside this body part or any child
+  checkContainsPoint(x: number, y: number): BodyPart | null {
+    // First check children (select more specific parts first)
+    for (const child of this.children) {
+      const found = child.checkContainsPoint(x, y);
+      if (found) return found;
+    }
+
+    // Transform world point to local space
+    const pos = this.body.getPosition();
+    const angle = this.body.getAngle();
+
+    const dx = x - pos.x;
+    const dy = y - pos.y;
+
+    const cos = Math.cos(-angle);
+    const sin = Math.sin(-angle);
+
+    const localX = dx * cos - dy * sin;
+    const localY = dx * sin + dy * cos;
+
+    // Check if within rectangle bounds
+    if (localX >= -this.actualWidth && localX <= this.actualWidth &&
+        localY >= -this.actualHeight && localY <= this.actualHeight) {
+      return this;
+    }
+
+    return null;
+  }
+
+  // Get inspection info for this body part
+  getInfo(): any {
+    const pos = this.body.getPosition();
+    const angle = this.body.getAngle();
+
+    const info: any = {
+      depth: this.depth,
+      actualWidth: this.actualWidth,
+      actualHeight: this.actualHeight,
+      position: { x: pos.x, y: pos.y },
+      angle: angle,
+      currentFriction: this.currentFriction,
+      actuation: this.calculateActuation(performance.now() * 0.001),
+      geneWidth: this.gene.normalizedWidth,
+      geneHeight: this.gene.normalizedHeight,
+      hasJoint: this.joint !== null
+    };
+
+    if (this.gene.attachmentSide) {
+      info.attachmentSide = this.gene.attachmentSide;
+      info.attachmentPosition = this.gene.attachmentPosition;
+    }
+
+    if (this.joint) {
+      const minAngle = this.joint.getLowerLimit();
+      const maxAngle = this.joint.getUpperLimit();
+      info.jointAngleRange = (maxAngle - minAngle) * (180 / Math.PI);
+    }
+
+    return info;
+  }
+
   // Render this body part
   render(): void {
     const pos = this.body.getPosition();
@@ -322,8 +385,14 @@ export class BodyPart {
 
     this.graphics
       .rect(-this.actualWidth, -this.actualHeight, this.actualWidth * 2, this.actualHeight * 2)
-      .fill({ color: color, alpha: 0.9 })
-      .stroke({ width: 0.05, color: 0xffffff });
+      .fill({ color: color, alpha: 0.9 });
+
+    // Highlight if selected
+    if (this.isSelected) {
+      this.graphics.stroke({ width: 0.15, color: 0xffff00 });
+    } else {
+      this.graphics.stroke({ width: 0.05, color: 0xffffff });
+    }
   }
 
   interpolateColor(color1: number, color2: number, t: number): number {

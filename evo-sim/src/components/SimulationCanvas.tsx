@@ -4,16 +4,19 @@ import { Camera } from '../utils/Camera';
 import { PhysicsWorld } from '../simulation/PhysicsWorld';
 import { Creature } from '../simulation/Creature';
 import { Gene } from '../simulation/Gene';
+import type { Tool } from '../App';
 
 interface SimulationCanvasProps {
   width: number;
   height: number;
   gravity: number;
   speedup: number;
+  currentTool: Tool;
   onStatsUpdate?: (fps: number, creatureCount: number) => void;
+  onBodyPartSelected?: (info: any) => void;
 }
 
-export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdate }: SimulationCanvasProps) {
+export function SimulationCanvas({ width, height, gravity, speedup, currentTool, onStatsUpdate, onBodyPartSelected }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
   const cameraRef = useRef<Camera | null>(null);
@@ -191,13 +194,18 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
       // Right mouse button - end dragging
       cameraRef.current.endDrag();
     } else if (e.button === 0) {
-      // Left mouse button - spawn creature
+      // Left mouse button - handle based on current tool
       const rect = canvasRef.current!.getBoundingClientRect();
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
 
       const worldPos = cameraRef.current.screenToWorld(screenX, screenY);
-      spawnCreature(worldPos.x, worldPos.y);
+
+      if (currentTool === 'create') {
+        spawnCreature(worldPos.x, worldPos.y);
+      } else if (currentTool === 'select') {
+        selectBodyPart(worldPos.x, worldPos.y);
+      }
     }
   };
 
@@ -280,6 +288,15 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
     }
   };
 
+  const selectBodyPart = (x: number, y: number) => {
+    if (!physicsWorldRef.current) return;
+
+    const info = physicsWorldRef.current.selectBodyPartAt(x, y);
+    if (onBodyPartSelected) {
+      onBodyPartSelected(info);
+    }
+  };
+
   return (
     <canvas
       ref={canvasRef}
@@ -289,9 +306,9 @@ export function SimulationCanvas({ width, height, gravity, speedup, onStatsUpdat
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onContextMenu={handleContextMenu}
-      style={{ 
-        display: 'block', 
-        cursor: 'crosshair',
+      style={{
+        display: 'block',
+        cursor: currentTool === 'create' ? 'crosshair' : 'pointer',
         width: `${width}px`,
         height: `${height}px`
       }}

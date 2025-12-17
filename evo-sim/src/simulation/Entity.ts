@@ -13,4 +13,5 @@ export abstract class Entity {
   abstract update(deltaTime: number): void;
   abstract render(): void;
   abstract destroy(): void;
+  abstract getBodyPartAt(x: number, y: number): any;
 }

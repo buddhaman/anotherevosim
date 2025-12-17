@@ -13,6 +13,7 @@ export class PhysicsWorld {
   bodies: Body[] = [];
   entities: Map<string, Entity> = new Map();
   speedup: number = 1; // How many steps to run per frame
+  selectedBodyPart: any = null; // Currently selected body part
 
   bounds = {
     minX: -100,
@@ -131,5 +132,25 @@ export class PhysicsWorld {
     if (params.timeStep !== undefined) {
       this.params.timeStep = params.timeStep;
     }
+  }
+
+  selectBodyPartAt(x: number, y: number): any {
+    // Clear previous selection
+    if (this.selectedBodyPart) {
+      this.selectedBodyPart.isSelected = false;
+    }
+    this.selectedBodyPart = null;
+
+    // Iterate through all entities and find body part at position
+    for (const entity of this.entities.values()) {
+      const bodyPart = entity.getBodyPartAt(x, y);
+      if (bodyPart) {
+        bodyPart.isSelected = true;
+        this.selectedBodyPart = bodyPart;
+        return bodyPart.getInfo();
+      }
+    }
+
+    return null;
   }
 }
