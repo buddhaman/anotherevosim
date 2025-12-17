@@ -33,7 +33,7 @@ export class Creature extends Entity {
     Creature.nextCollisionGroup--;
 
     // Build body parts from flat list
-    this.buildBodyFromGenes(physicsWorld.world, x, y);
+    this.buildBodyFromGenes(x, y);
 
     // Collect all bodies and graphics
     this.bodies = [];
@@ -47,10 +47,7 @@ export class Creature extends Entity {
   }
 
   // Build body parts from the flat gene list
-  private buildBodyFromGenes(world: World, x: number, y: number): void {
-    if (this.gene.BodyPartGenes.length === 0) {
-      return;
-    }
+  private buildBodyFromGenes(x: number, y: number): void {
 
     // First, create all body parts (without joints)
     for (let i = 0; i < this.gene.BodyPartGenes.length; i++) {
@@ -74,7 +71,7 @@ export class Creature extends Entity {
 
       const bodyPart = new BodyPart(
         gene,
-        world,
+        this,
         depth,
         parent,
         initialPosition,
@@ -91,52 +88,6 @@ export class Creature extends Entity {
 
     // Root part is at index 0
     this.rootPart = this.bodyParts[0];
-  }
-
-  public addBodyPart(gene: BodyPartGene, parentIndex: number | null): void {
-    const world = this.world.world; // Get World from PhysicsWorld
-    
-    // Add to gene list
-    const newIndex = this.gene.addBodyPartGene(
-      gene.normalizedWidth,
-      gene.normalizedHeight,
-      parentIndex,
-      gene.attachmentSide,
-      gene.attachmentPosition,
-      gene.angleRange
-    );
-
-    // Create the body part
-    const parent = parentIndex !== null ? this.bodyParts[parentIndex] : null;
-    
-    // Calculate depth
-    let depth = 0;
-    let currentIndex: number | null = newIndex;
-    while (currentIndex !== null) {
-      depth++;
-      currentIndex = this.gene.BodyPartGenes[currentIndex].parentIndex;
-    }
-    depth--;
-
-    const bodyPart = new BodyPart(
-      gene,
-      world,
-      depth,
-      parent,
-      undefined,
-      this.collisionGroup
-    );
-
-    this.bodyParts.push(bodyPart);
-
-    // Link parent and child
-    if (parent) {
-      parent.children.push(bodyPart);
-    }
-
-    // Update bodies and graphics arrays
-    this.bodies.push(bodyPart.body);
-    this.graphics.push(bodyPart.graphics);
   }
 
   update(deltaTime: number): void {

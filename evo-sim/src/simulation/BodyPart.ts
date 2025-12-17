@@ -1,6 +1,7 @@
 // Phenotype: The physical expression of a body part gene
 
 import { World, Body, Vec2, Box, RevoluteJoint } from 'planck';
+import { Creature } from './Creature';
 import { Graphics } from 'pixi.js';
 import { BodyPartGene, Gene } from './Gene';
 import type { AttachmentSide } from './Gene';
@@ -18,6 +19,8 @@ export class BodyPart {
   parent: BodyPart | null;
   children: BodyPart[];
 
+  creature: Creature;
+
   currentFriction: number;
   isSelected: boolean = false;
 
@@ -31,12 +34,13 @@ export class BodyPart {
 
   constructor(
     gene: BodyPartGene,
-    world: World,
+    creature: Creature,
     depth: number,
     parent: BodyPart | null,
     initialPosition?: Vec2,
     collisionGroup?: number
   ) {
+    this.creature = creature;
     this.gene = gene;
     this.depth = depth;
     this.parent = parent;
@@ -75,6 +79,7 @@ export class BodyPart {
       );
     }
 
+    const world = creature.world.world;
     // Create physics body
     this.body = world.createBody({
       type: 'dynamic',

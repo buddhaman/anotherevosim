@@ -275,9 +275,7 @@ This approach is chosen because it:
 * Encourages emergent, non-human-like solutions
 * Works naturally with physics-based evolution
 
----
 
-For now, **rectangles + revolute joints + friction control** is sufficient—and powerful.
 1. Create the minimal modern React + TypeScript project (Vite)
 
 * `npm create vite@latest evo-sim -- --template react-ts`
